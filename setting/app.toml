@@ -1,0 +1,8 @@
+title = "gin_practice config file"
+
+[database]
+host = "localhost"
+port = 5432
+user = "webapp"
+password = "23698741"
+dbname = "webdb"
