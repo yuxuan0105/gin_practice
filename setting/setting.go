@@ -2,16 +2,14 @@ package setting
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
 
-func GetSetting() (*viper.Viper, error) {
-	confPath := ""
-	flag.StringVar(&confPath, "c", "", "Configuration file path.")
+func GetSetting(confPath string) (*viper.Viper, error) {
 	if confPath != "" {
 		content, err := ioutil.ReadFile(confPath)
 		if err != nil {
@@ -20,7 +18,13 @@ func GetSetting() (*viper.Viper, error) {
 		viper.ReadConfig(bytes.NewBuffer(content))
 	} else {
 		viper.SetConfigName("app")
-		viper.AddConfigPath(".")
+
+		if gin.Mode() == gin.TestMode {
+			viper.AddConfigPath("../setting")
+		} else {
+			viper.AddConfigPath("./setting")
+		}
+
 		if err := viper.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("error at setuping viper: %s", err)
 		}

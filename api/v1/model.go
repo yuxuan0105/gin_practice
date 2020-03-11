@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -23,12 +24,13 @@ type Model struct {
 }
 
 func NewModel() (*Model, error) {
-	//	md.router = setupRouter()
-	//	md.db = setupDatabase()
 	this := Model{}
-
+	//read flags
+	confPath := ""
+	flag.StringVar(&confPath, "c", "", "Configuration file path.")
+	flag.Parse()
 	//setup viper
-	v, err := setting.GetSetting()
+	v, err := setting.GetSetting(confPath)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +41,7 @@ func NewModel() (*Model, error) {
 	}
 	//setup router
 	this.setupRouter()
-
+	//setup server
 	this.srv = &http.Server{
 		Addr:    ":8080",
 		Handler: this.rt,
@@ -51,7 +53,7 @@ func NewModel() (*Model, error) {
 func (this *Model) setupRouter() {
 	this.rt = gin.Default()
 
-	user := this.rt.Group("/api/v1/user")
+	user := this.rt.Group("/api/v1/users")
 	{
 		user.GET("", this.getUsers)
 		user.GET(":uid", this.getUserById)
@@ -69,6 +71,7 @@ func (this *Model) RunServer() {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
+	log.Println("Server is running")
 
 	// Wait for interrupt signal to gracefully shutdown the server with
 	// a timeout of 5 seconds.
@@ -78,12 +81,13 @@ func (this *Model) RunServer() {
 	// kill -9 is syscall.SIGKILL but can't be catch, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutdown Server ...")
+	log.Println()
+	log.Println("Server is Closing ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := this.srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown: ", err)
+		log.Fatal("Error Occur at Server Shutdown: ", err)
 	}
 
 	log.Println("Server exiting")

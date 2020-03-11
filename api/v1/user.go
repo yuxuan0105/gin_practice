@@ -1,6 +1,10 @@
 package v1
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
 
 type User struct {
 	Email    string `json:"email"`
@@ -11,7 +15,11 @@ type User struct {
 //ADD: login
 
 func (this *Model) getUsers(c *gin.Context) {
-
+	//data := interface{}{}
+	c.JSON(http.StatusOK, gin.H{
+		"msg":  "success",
+		"data": nil,
+	})
 }
 
 func (this *Model) getUserById(c *gin.Context) {
