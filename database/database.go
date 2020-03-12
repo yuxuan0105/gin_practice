@@ -11,7 +11,7 @@ import (
 func SetupDatabase(v *viper.Viper) (*sql.DB, error) {
 	dbConf := v.GetStringMap("database")
 	connStr := fmt.Sprintf(
-		"user=%s password=%s host=%s port=%d dbname=%s sslmode=diable",
+		"user=%s password=%s host=%s port=%d dbname=%s sslmode=disable",
 		dbConf["user"], dbConf["password"], dbConf["host"], dbConf["port"], dbConf["dbname"],
 	)
 	newdb, err := sql.Open("postgres", connStr)

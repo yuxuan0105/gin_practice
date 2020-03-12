@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -98,4 +99,11 @@ func (this *Model) ServeTestRequest(method, path string) *httptest.ResponseRecor
 	w := httptest.NewRecorder()
 	this.rt.ServeHTTP(w, req)
 	return w
+}
+
+func (this *Model) GetTxForTest() (*sql.Tx, error) {
+	if gin.Mode() != gin.TestMode {
+		return nil, fmt.Errorf("Can only be called by test function.")
+	}
+	return this.db.Begin()
 }
