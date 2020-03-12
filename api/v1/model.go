@@ -101,9 +101,9 @@ func (this *Model) ServeTestRequest(method, path string) *httptest.ResponseRecor
 	return w
 }
 
-func (this *Model) GetTxForTest() (*sql.Tx, error) {
+func (this *Model) GetDBforTest() (*sql.DB, error) {
 	if gin.Mode() != gin.TestMode {
 		return nil, fmt.Errorf("Can only be called by test function.")
 	}
-	return this.db.Begin()
+	return this.db, nil
 }
