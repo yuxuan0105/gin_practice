@@ -2,9 +2,7 @@ package v1
 
 import (
 	"context"
-	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -14,13 +12,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/yuxuan0105/gin_practice/database"
 	"github.com/yuxuan0105/gin_practice/setting"
 )
 
 type Model struct {
 	rt  *gin.Engine
-	db  *sql.DB
+	db  *sqlx.DB
 	srv *http.Server
 }
 
@@ -101,9 +100,9 @@ func (this *Model) ServeTestRequest(method, path string) *httptest.ResponseRecor
 	return w
 }
 
-func (this *Model) GetDBforTest() (*sql.DB, error) {
+func (this *Model) GetDBforTest() *sqlx.DB {
 	if gin.Mode() != gin.TestMode {
-		return nil, fmt.Errorf("Can only be called by test function.")
+		panic("GetDBforTest can only be called in gin.Testmode")
 	}
-	return this.db, nil
+	return this.db
 }

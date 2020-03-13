@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -10,9 +8,10 @@ import (
 )
 
 type User struct {
-	Email    string `json:"email"`
-	Nickname string `json:"nickname"`
-	CreateOn string `json:"create_on"`
+	User_id    string `json:"user_id"`
+	Email      string `json:"email"`
+	Nickname   string `json:"nickname"`
+	Created_on string `json:"created_on"`
 }
 
 func newUser() *User {
@@ -22,15 +21,15 @@ func newUser() *User {
 //ADD: login
 
 func (this *Model) getUsers(c *gin.Context) {
-	data, err := getUserDatas(this.db, "")
+	var data []User
+	err := this.db.Select(&data, "SELECT user_id,email,nickname,created_on FROM account")
 	if err != nil {
-		log.Println(err)
+		log.Printf("getUsers: %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"msg":  http.StatusText(http.StatusInternalServerError),
 			"data": nil,
 		})
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"msg":  http.StatusText(http.StatusOK),
 		"data": data,
@@ -63,33 +62,4 @@ func (this *Model) deleteUser(c *gin.Context) {
 		"msg":  http.StatusText(http.StatusNoContent),
 		"data": nil,
 	})
-}
-
-func getUserDatas(db *sql.DB, condition string) ([]*User, error) {
-	query := "SELECT email, nickname,created_on From account"
-	if condition != "" {
-		query += " WHERE " + condition
-	}
-	query += ";"
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("error at querying data: %s", err)
-	}
-	defer rows.Close()
-
-	data := []*User{}
-	for rows.Next() {
-		temp := newUser()
-		if err := rows.Scan(&temp.Email, &temp.Nickname, &temp.CreateOn); err != nil {
-			return nil, fmt.Errorf("error at scaning data: %s", err)
-		}
-		data = append(data, temp)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return data, nil
 }
