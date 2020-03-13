@@ -37,9 +37,19 @@ func (this *Model) getUsers(c *gin.Context) {
 }
 
 func (this *Model) getUserById(c *gin.Context) {
+	uid := c.Param("uid")
+	var data []User
+	err := this.db.Select(&data, "SELECT user_id,email,nickname,created_on FROM account WHERE user_id = $1", uid)
+	if err != nil {
+		log.Printf("getUserById: %s", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg":  http.StatusText(http.StatusInternalServerError),
+			"data": nil,
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"msg":  http.StatusText(http.StatusOK),
-		"data": nil,
+		"data": data,
 	})
 }
 
