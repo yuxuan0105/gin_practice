@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -59,7 +60,8 @@ func TestMain(m *testing.M) {
 
 func TestModel_getUsers(t *testing.T) {
 	//send request
-	w := app.ServeTestRequest("GET", "/api/v1/users")
+	req := newRequest("GET", "/api/v1/users")
+	w := app.ServeTestRequest(req)
 	//check code
 	if !assert.Equal(t, http.StatusOK, w.Code) {
 		t.Fatal()
@@ -71,17 +73,19 @@ func TestModel_getUsers(t *testing.T) {
 	}
 	if assert.Equal(t, 3, len(res.Data)) {
 		for i, v := range res.Data {
-			assert.Equal(t, testData[i][0].(string), v.Email)
-			assert.Equal(t, testData[i][2].(string), v.Nickname)
+			temp := v.(map[string]interface{})
+			assert.Equal(t, testData[i][0].(string), temp["email"])
+			assert.Equal(t, testData[i][2].(string), temp["nickname"])
 		}
 	}
 }
 
 func TestModel_getUserById(t *testing.T) {
-	testId := 2
-	url := fmt.Sprintf("/api/v1/users/%d", testId)
+	testId := 1
+	path := fmt.Sprintf("/api/v1/users/%d", testId)
 	//send request
-	w := app.ServeTestRequest("GET", url)
+	req := newRequest("GET", path)
+	w := app.ServeTestRequest(req)
 	//check code
 	if !assert.Equal(t, http.StatusOK, w.Code) {
 		t.Fatal()
@@ -92,7 +96,77 @@ func TestModel_getUserById(t *testing.T) {
 		t.Fatalf("error at unmarshal json: %s", err)
 	}
 	if assert.Equal(t, 1, len(res.Data)) {
-		assert.Equal(t, testData[testId-1][0].(string), res.Data[0].Email)
-		assert.Equal(t, testData[testId-1][2].(string), res.Data[0].Nickname)
+		temp := res.Data[0].(map[string]interface{})
+		assert.Equal(t, testData[testId-1][0].(string), temp["email"])
+		assert.Equal(t, testData[testId-1][2].(string), temp["nickname"])
 	}
+}
+
+func TestModel_modifyUserName(t *testing.T) {
+	testId := 1
+	path := fmt.Sprintf("/api/v1/users/%d", testId)
+	//send request
+	body := &url.Values{}
+	body.Add("nickname", "John")
+	req := newRequestWithBody("PATCH", path, body)
+	w := app.ServeTestRequest(req)
+	//check code
+	if !assert.Equal(t, http.StatusNoContent, w.Code) {
+		t.Fatal()
+	}
+	//check modify success or not
+	var target string
+	db.Get(&target, "SELECT nickname FROM account WHERE user_id=$1;", testId)
+	assert.Equal(t, body.Get("nickname"), target)
+	//test no parameter request
+	body = &url.Values{}
+	req = newRequestWithBody("PATCH", path, body)
+	w = app.ServeTestRequest(req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestModel_deleteUser(t *testing.T) {
+	testId := 3
+	path := fmt.Sprintf("/api/v1/users/%d", testId)
+	//send request
+	req := newRequest("DELETE", path)
+	w := app.ServeTestRequest(req)
+	//check code
+	if !assert.Equal(t, http.StatusNoContent, w.Code) {
+		t.Fatal()
+	}
+
+	var is_exist int
+	if err := db.Get(
+		&is_exist,
+		"SELECT CASE WHEN EXISTS (SELECT * FROM account WHERE user_id=$1) THEN 1 ELSE 0 END;",
+		testId,
+	); err != nil {
+		t.Fatal()
+	}
+	assert.Equal(t, 0, is_exist)
+}
+
+func TestModel_addUser(t *testing.T) {
+	//send request
+	body := &url.Values{}
+	body.Add("email", "John132@gmail.com")
+	body.Add("password", "123456")
+	body.Add("nickname", "John")
+	req := newRequestWithBody("POST", "/api/v1/users", body)
+	w := app.ServeTestRequest(req)
+	//check code
+	if !assert.Equal(t, http.StatusNoContent, w.Code) {
+		t.Fatal()
+	}
+	//check add success or not
+	var is_exist int
+	if err := db.Get(
+		&is_exist,
+		"SELECT CASE WHEN EXISTS (SELECT * FROM account WHERE email=$1 AND password=$2 AND nickname=$3) THEN 1 ELSE 0 END;",
+		body.Get("email"), body.Get("password"), body.Get("nickname"),
+	); err != nil {
+		t.Fatal()
+	}
+	assert.Equal(t, 1, is_exist)
 }

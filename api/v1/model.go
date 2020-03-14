@@ -58,8 +58,8 @@ func (this *Model) setupRouter() {
 		user.GET("", this.getUsers)
 		user.GET(":uid", this.getUserById)
 		user.POST("", this.addUser)
-		user.PUT("", this.modifyUser)
-		user.DELETE("", this.deleteUser)
+		user.PATCH(":uid", this.modifyUserName)
+		user.DELETE(":uid", this.deleteUser)
 	}
 
 }
@@ -93,8 +93,7 @@ func (this *Model) RunServer() {
 	log.Println("Server exiting")
 }
 
-func (this *Model) ServeTestRequest(method, path string) *httptest.ResponseRecorder {
-	req, _ := http.NewRequest(method, path, nil)
+func (this *Model) ServeTestRequest(req *http.Request) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	this.rt.ServeHTTP(w, req)
 	return w
