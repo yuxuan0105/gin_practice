@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	v1 "github.com/yuxuan0105/gin_practice/api/v1"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -30,11 +31,11 @@ func TestMain(m *testing.M) {
 	}
 	db = app.GetDBforTest()
 	//check table is empty
-	var is_not_empty int
-	err = db.Get(&is_not_empty, "SELECT CASE WHEN EXISTS (SELECT * FROM account LIMIT 1) THEN 1 ELSE 0 END;")
+	var is_not_empty bool
+	err = db.Get(&is_not_empty, "SELECT EXISTS(SELECT 1 FROM account LIMIT 1);")
 	if err != nil {
 		log.Panic(err)
-	} else if is_not_empty == 1 {
+	} else if is_not_empty {
 		log.Panic("table is not empty")
 	}
 	//test data
@@ -148,25 +149,39 @@ func TestModel_deleteUser(t *testing.T) {
 }
 
 func TestModel_addUser(t *testing.T) {
+	path := "/api/v1/users"
 	//send request
 	body := &url.Values{}
-	body.Add("email", "John132@gmail.com")
+	body.Add("email", "Gary1322@gmail.com")
 	body.Add("password", "123456")
-	body.Add("nickname", "John")
-	req := newRequestWithBody("POST", "/api/v1/users", body)
+	body.Add("nickname", "Gary")
+	req := newRequestWithBody("POST", path, body)
 	w := app.ServeTestRequest(req)
 	//check code
-	if !assert.Equal(t, http.StatusNoContent, w.Code) {
+	if !assert.Equal(t, http.StatusCreated, w.Code) {
 		t.Fatal()
 	}
+	assert.Equal(t, "/api/v1/users/4", w.Header().Get("Location"))
 	//check add success or not
-	var is_exist int
-	if err := db.Get(
-		&is_exist,
-		"SELECT CASE WHEN EXISTS (SELECT * FROM account WHERE email=$1 AND password=$2 AND nickname=$3) THEN 1 ELSE 0 END;",
-		body.Get("email"), body.Get("password"), body.Get("nickname"),
+	var ret []string
+	if err := db.Select(
+		&ret,
+		"SELECT password FROM account WHERE email=$1 AND nickname=$2;",
+		body.Get("email"), body.Get("nickname"),
 	); err != nil {
 		t.Fatal()
 	}
-	assert.Equal(t, 1, is_exist)
+	if assert.Equal(t, 1, len(ret)) {
+		if err := bcrypt.CompareHashAndPassword([]byte(ret[0]), []byte(body.Get("password"))); err != nil {
+			t.Fail()
+		}
+	}
+	//send the same request again
+	w = app.ServeTestRequest(req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	//test no parameter request
+	body = &url.Values{}
+	req = newRequestWithBody("POST", path, body)
+	w = app.ServeTestRequest(req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
