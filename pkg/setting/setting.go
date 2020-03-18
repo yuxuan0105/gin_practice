@@ -20,9 +20,9 @@ func GetSetting(confPath string) (*viper.Viper, error) {
 		viper.SetConfigName("app")
 
 		if gin.Mode() == gin.TestMode {
-			viper.AddConfigPath("../setting")
+			viper.AddConfigPath("../conf")
 		} else {
-			viper.AddConfigPath("./setting")
+			viper.AddConfigPath("./conf")
 		}
 
 		if err := viper.ReadInConfig(); err != nil {

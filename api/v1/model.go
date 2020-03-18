@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/yuxuan0105/gin_practice/database"
-	"github.com/yuxuan0105/gin_practice/setting"
+	"github.com/yuxuan0105/gin_practice/pkg/setting"
 )
 
 type Model struct {
@@ -57,7 +57,7 @@ func (this *Model) setupRouter() {
 	{
 		user.GET("", this.getUsers)
 		user.GET(":uid", this.getUserById)
-		user.POST("", this.addUser)
+		user.POST("", this.register)
 		user.PATCH(":uid", this.modifyUserName)
 		user.DELETE(":uid", this.deleteUser)
 	}
