@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -196,4 +197,30 @@ func Test_addUser(t *testing.T) {
 	req = newRequestWithBody("POST", path, body)
 	w = app.ServeTestRequest(req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func Test_login(t *testing.T) {
+	path := "/login"
+	body := &url.Values{}
+	//send request
+	body.Add("email", "Gary1322@gmail.com")
+	body.Add("password", "123456")
+	req := newRequestWithBody("POST", path, body)
+	w := app.ServeTestRequest(req)
+	//check code
+	if !assert.Equal(t, http.StatusOK, w.Code) {
+		log.Println(w.Body.String())
+		t.Fatal()
+	}
+	var res struct {
+		Code   int       `json:"code"`
+		Expire time.Time `json:"expire"`
+		Token  string    `json:"token"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("error at unmarshal json: %s", err)
+	}
+	if res.Token == "" {
+		t.Fail()
+	}
 }

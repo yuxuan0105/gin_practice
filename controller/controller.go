@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	v1 "github.com/yuxuan0105/gin_practice/api/v1"
+	"github.com/yuxuan0105/gin_practice/middleware/auth"
 	d "github.com/yuxuan0105/gin_practice/middleware/database"
 	"github.com/yuxuan0105/gin_practice/pkg/setting"
 )
@@ -38,10 +39,13 @@ func NewController() *Controller {
 	if err != nil {
 		log.Panicf("NewController: %s", err)
 	}
-
+	//setup jwt middleware
+	authmid := auth.NewAuth()
 	//setup router
 	this.rt = gin.Default()
 	this.rt.Use(d.GetMiddlewareFunc(newdb))
+
+	this.rt.POST("/login", authmid.LoginHandler)
 
 	user := this.rt.Group("/api/v1/users")
 	{
