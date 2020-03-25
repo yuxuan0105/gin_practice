@@ -1,4 +1,4 @@
-package v1
+package controller
 
 import (
 	"context"
@@ -12,19 +12,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
-	"github.com/yuxuan0105/gin_practice/database"
+	v1 "github.com/yuxuan0105/gin_practice/api/v1"
+	d "github.com/yuxuan0105/gin_practice/middleware/database"
 	"github.com/yuxuan0105/gin_practice/pkg/setting"
 )
 
-type Model struct {
+type Controller struct {
 	rt  *gin.Engine
-	db  *sqlx.DB
 	srv *http.Server
 }
 
-func NewModel() (*Model, error) {
-	this := Model{}
+func NewController() *Controller {
+	this := Controller{}
 	//read flags
 	confPath := ""
 	flag.StringVar(&confPath, "c", "", "Configuration file path.")
@@ -32,39 +31,36 @@ func NewModel() (*Model, error) {
 	//setup viper
 	v, err := setting.GetSetting(confPath)
 	if err != nil {
-		return nil, err
+		log.Panicf("NewController: %s", err)
 	}
 	//setup database
-	this.db, err = database.SetupDatabase(v)
+	newdb, err := d.SetupDatabase(v)
 	if err != nil {
-		return nil, err
+		log.Panicf("NewController: %s", err)
 	}
+
 	//setup router
-	this.setupRouter()
+	this.rt = gin.Default()
+	this.rt.Use(d.GetMiddlewareFunc(newdb))
+
+	user := this.rt.Group("/api/v1/users")
+	{
+		user.GET("", v1.GetUsers)
+		user.GET(":uid", v1.GetUserById)
+		user.POST("", v1.SignUp)
+		user.PATCH(":uid", v1.ModifyUserName)
+		user.DELETE(":uid", v1.DeleteUser)
+	}
 	//setup server
 	this.srv = &http.Server{
 		Addr:    ":8080",
 		Handler: this.rt,
 	}
 
-	return &this, nil
+	return &this
 }
 
-func (this *Model) setupRouter() {
-	this.rt = gin.Default()
-
-	user := this.rt.Group("/api/v1/users")
-	{
-		user.GET("", this.getUsers)
-		user.GET(":uid", this.getUserById)
-		user.POST("", this.register)
-		user.PATCH(":uid", this.modifyUserName)
-		user.DELETE(":uid", this.deleteUser)
-	}
-
-}
-
-func (this *Model) RunServer() {
+func (this *Controller) RunServer() {
 	go func() {
 		// service connections
 		if err := this.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -93,15 +89,8 @@ func (this *Model) RunServer() {
 	log.Println("Server exiting")
 }
 
-func (this *Model) ServeTestRequest(req *http.Request) *httptest.ResponseRecorder {
+func (this *Controller) ServeTestRequest(req *http.Request) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	this.rt.ServeHTTP(w, req)
 	return w
-}
-
-func (this *Model) GetDBforTest() *sqlx.DB {
-	if gin.Mode() != gin.TestMode {
-		panic("GetDBforTest can only be called in gin.Testmode")
-	}
-	return this.db
 }

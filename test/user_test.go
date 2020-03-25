@@ -10,13 +10,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	v1 "github.com/yuxuan0105/gin_practice/api/v1"
+	c "github.com/yuxuan0105/gin_practice/controller"
+	"github.com/yuxuan0105/gin_practice/middleware/database"
+	"github.com/yuxuan0105/gin_practice/pkg/setting"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	app      *v1.Model
+	app      *c.Controller
 	db       *sqlx.DB
 	testData [][]interface{}
 )
@@ -25,11 +28,18 @@ func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 	var err error
 	//init app
-	app, err = v1.NewModel()
+	app = c.NewController()
+	//init db
+	var v *viper.Viper
+	v, err = setting.GetSetting("")
 	if err != nil {
-		log.Panicf("app init error: %s", err)
+		log.Panicf("TestMain: %s", err)
 	}
-	db = app.GetDBforTest()
+	//setup database
+	db, err = database.SetupDatabase(v)
+	if err != nil {
+		log.Panicf("TestMain: %s", err)
+	}
 	//check table is empty
 	var is_not_empty bool
 	err = db.Get(&is_not_empty, "SELECT EXISTS(SELECT 1 FROM account LIMIT 1);")
@@ -46,7 +56,9 @@ func TestMain(m *testing.M) {
 	}
 	//defer cleanup
 	defer func() {
-		db.MustExec("TRUNCATE account;ALTER SEQUENCE account_user_id_seq RESTART;")
+		if _, err := db.Exec("TRUNCATE account;ALTER SEQUENCE account_user_id_seq RESTART;"); err != nil {
+			log.Panicf("TestMain: %s", err)
+		}
 	}()
 	//add test data
 	tx := db.MustBegin()
@@ -59,7 +71,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func TestModel_getUsers(t *testing.T) {
+func Test_getUsers(t *testing.T) {
 	//send request
 	req := newRequest("GET", "/api/v1/users")
 	w := app.ServeTestRequest(req)
@@ -81,7 +93,7 @@ func TestModel_getUsers(t *testing.T) {
 	}
 }
 
-func TestModel_getUserById(t *testing.T) {
+func Test_getUserById(t *testing.T) {
 	testId := 1
 	path := fmt.Sprintf("/api/v1/users/%d", testId)
 	//send request
@@ -103,7 +115,7 @@ func TestModel_getUserById(t *testing.T) {
 	}
 }
 
-func TestModel_modifyUserName(t *testing.T) {
+func Test_modifyUserName(t *testing.T) {
 	testId := 1
 	path := fmt.Sprintf("/api/v1/users/%d", testId)
 	//send request
@@ -126,7 +138,7 @@ func TestModel_modifyUserName(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestModel_deleteUser(t *testing.T) {
+func Test_deleteUser(t *testing.T) {
 	testId := 3
 	path := fmt.Sprintf("/api/v1/users/%d", testId)
 	//send request
@@ -148,13 +160,13 @@ func TestModel_deleteUser(t *testing.T) {
 	assert.Equal(t, 0, is_exist)
 }
 
-func TestModel_addUser(t *testing.T) {
+func Test_addUser(t *testing.T) {
 	path := "/api/v1/users"
-	//send request
 	body := &url.Values{}
 	body.Add("email", "Gary1322@gmail.com")
 	body.Add("password", "123456")
 	body.Add("nickname", "Gary")
+	//send request
 	req := newRequestWithBody("POST", path, body)
 	w := app.ServeTestRequest(req)
 	//check code
